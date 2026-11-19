@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bó Hoa Tulip & Cẩm Tú Cầu Hồng 🌷</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts hỗ trợ tiếng Việt mượt mà -->
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Quicksand', sans-serif;
+      background: radial-gradient(circle at 50% 35%, #1d102b 0%, #0e0717 55%, #050209 100%);
+      color: #fff;
+      user-select: none;
+    }
+
+    .font-script {
+      font-family: 'Dancing Script', cursive;
+    }
+
+    /* Canvas chính vẽ bó hoa, đom đóm và cánh hoa bay */
+    #flowerCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    /* Hộp kính mờ cho nút và modal */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 192, 220, 0.25);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Hiệu ứng hiện dần cho lời chúc sau khi hoa nở */
+    .message-box {
+      transition: opacity 1.4s ease, transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .message-hidden {
+      opacity: 0;
+      transform: translateY(18px);
+      pointer-events: none;
+    }
+
+    .message-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .text-glow {
+      text-shadow: 0 0 18px rgba(255, 140, 185, 0.55), 0 2px 8px rgba(0, 0, 0, 0.7);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Canvas vẽ toàn bộ bó hoa tự mọc và nở -->
+  <canvas id="flowerCanvas"></canvas>
+
+  <!-- Thanh điều khiển tinh tế phía trên -->
+  <header class="fixed top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+    <!-- Nút đổi bảng màu bó hoa & viết lời chúc -->
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <button id="paletteBtn" title="Đổi sắc độ hồng của bó hoa" class="glass-panel hover:bg-white/15 active:scale-95 transition px-3.5 py-2 rounded-full text-xs sm:text-sm font-semibold text-pink-100 flex items-center gap-1.5 cursor-pointer">
+        <span>🎨</span>
+        <span id="paletteLabel" class="hidden sm:inline">Hồng Phấn</span>
+      </button>
+
+      <button id="editBtn" title="Sửa lời nhắn tặng người ấy" class="glass-panel hover:bg-white/15 active:scale-95 transition px-3.5 py-2 rounded-full text-xs sm:text-sm font-semibold text-pink-100 flex items-center gap-1.5 cursor-pointer">
+        <span>💌</span>
+        <span class="hidden sm:inline">Ghi lời chúc</span>
+      </button>
+    </div>
+
+    <!-- Nút xem lại quá trình nở & bật/tắt nhạc -->
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <button id="replayBtn" title="Xem lại hoa nở từ gốc" class="glass-panel hover:bg-white/15 active:scale-95 transition px-3.5 py-2 rounded-full text-xs sm:text-sm font-semibold text-pink-100 flex items-center gap-1.5 cursor-pointer">
+        <span>↺</span>
+        <span class="hidden sm:inline">Nở lại</span>
+      </button>
+
+      <button id="musicBtn" title="Bật/Tắt nhạc nền" class="glass-panel hover:bg-white/15 active:scale-95 transition w-9 h-9 sm:w-10 sm:h-10 rounded-full text-base text-pink-100 flex items-center justify-center cursor-pointer">
+        🔇
+      </button>
+    </div>
+  </header>
+
+  <!-- Tiêu đề / lời chúc lãng mạn hiện lên khi hoa bắt đầu nở rộ -->
+  <div id="messageContainer" class="message-box message-hidden fixed top-16 sm:top-20 left-0 right-0 z-10 text-center px-4 pointer-events-none">
+    <p id="subTitle" class="text-pink-200/85 text-xs sm:text-sm uppercase tracking-[0.22em] font-semibold mb-1">
+      Nè cậu oiii
+    </p>
+    <h1 id="mainMessage" class="font-script text-3xl sm:text-5xl text-pink-50 text-glow leading-snug">
+      Tớ thương mình nhìu lắmmm 
+    </h1>
+  </div>
+
+  <!-- Gợi ý nhỏ phía dưới màn hình -->
+  <div id="hintText" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-10 text-pink-200/55 text-xs tracking-wide pointer-events-none text-center whitespace-nowrap transition-opacity duration-700">
+    Chạm vào màn hình để thả thêm ánh sáng &amp; cánh hoa ✨
+  </div>
+
+  <!-- Thông báo Toast (thay thế hoàn toàn alert) -->
+  <div id="toast" class="fixed bottom-12 left-1/2 -translate-x-1/2 z-40 px-5 py-2.5 rounded-full bg-pink-600/90 text-white text-xs sm:text-sm font-semibold shadow-xl backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 text-center max-w-[90vw]">
+    Đã cập nhật!
+  </div>
+
+  <!-- Modal tùy chỉnh lời chúc & sao chép link gửi đi -->
+  <div id="editModal" class="fixed inset-0 z-30 hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div class="glass-panel rounded-3xl p-6 w-full max-w-md text-left">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-pink-100">🌸 Gửi bó hoa này cho ai?</h2>
+        <button id="closeModalBtn" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-pink-100 flex items-center justify-center cursor-pointer">✕</button>
+      </div>
+
+      <div class="space-y-3.5 text-sm">
+        <div>
+          <label class="block text-pink-200/90 font-semibold mb-1">Dòng nhỏ phía trên</label>
+          <input id="inputSub" type="text" placeholder="Ví dụ: Gửi tặng Minh Anh" class="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-pink-300/30 text-white focus:outline-none focus:border-pink-400">
+        </div>
+        <div>
+          <label class="block text-pink-200/90 font-semibold mb-1">Lời chúc chính</label>
+          <input id="inputMain" type="text" placeholder="Ví dụ: Chúc cậu luôn rạng rỡ như đóa hoa này ✨" class="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-pink-300/30 text-white focus:outline-none focus:border-pink-400">
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-2.5 mt-5">
+        <button id="applyMsgBtn" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-400 hover:brightness-110 text-white font-bold text-sm cursor-pointer transition shadow-lg">
+          Áp dụng ngay
+        </button>
+        <button id="copyShareBtn" class="flex-1 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-pink-300/35 text-pink-100 font-semibold text-sm cursor-pointer transition">
+          📋 Sao chép link
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. CẤU HÌNH BẢNG MÀU BÓ HOA (TẬP TRUNG CÁC SẮC HỒNG CHO TULIP & TÚ CẦU)
+    // =========================================================================
+    const PALETTES = [
+      {
+        name: 'Hồng Phấn',
+        ribbon: ['#ec4899', '#f9a8d4', '#be185d'],
+        wrap: ['rgba(255, 200, 224, 0.18)', 'rgba(244, 114, 182, 0.09)'],
+        // Sắc hồng cho hoa Tulip (từ gốc cánh -> thân cánh -> viền cánh)
+        tulips: [
+          { base: '#db2777', mid: '#f472b6', tip: '#fce7f3', glow: '#f472b6' },
+          { base: '#e11d64', mid: '#ff7eb3', tip: '#ffe4ef', glow: '#ff7eb3' },
+          { base: '#f43f5e', mid: '#fb7185', tip: '#ffe4e6', glow: '#fb7185' }
+        ],
+        // Các sắc độ hồng đan xen trong chùm Cẩm Tú Cầu
+        hydrangeas: ['#fbcfe8', '#f9a8d4', '#f472b6', '#fda4af', '#ffe4f0'],
+        petalColors: ['#f9a8d4', '#fbcfe8', '#f472b6', '#ffe4ef']
+      },
+      {
+        name: 'Hồng Đào Pastel',
+        ribbon: ['#fb7185', '#fecdd3', '#be123c'],
+        wrap: ['rgba(254, 205, 211, 0.2)', 'rgba(251, 113, 133, 0.08)'],
+        tulips: [
+          { base: '#e11d48', mid: '#fb7185', tip: '#fff1f2', glow: '#fb7185' },
+          { base: '#f43f5e', mid: '#fda4af', tip: '#ffe4e6', glow: '#fda4af' },
+          { base: '#ec4899', mid: '#f9a8d4', tip: '#fdf2f8', glow: '#f9a8d4' }
+        ],
+        hydrangeas: ['#ffe4e6', '#fecdd3', '#fda4af', '#fbcfe8', '#fff0f3'],
+        petalColors: ['#fecdd3', '#fda4af', '#fbcfe8', '#fff1f2']
+      },
+      {
+        name: 'Hồng Sen Ngọt',
+        ribbon: ['#be185d', '#f472b6', '#831843'],
+        wrap: ['rgba(244, 114, 182, 0.18)', 'rgba(157, 23, 77, 0.12)'],
+        tulips: [
+          { base: '#9d174d', mid: '#ec4899', tip: '#fbcfe8', glow: '#ec4899' },
+          { base: '#be185d', mid: '#f472b6', tip: '#fce7f3', glow: '#f472b6' },
+          { base: '#db2777', mid: '#ff5c93', tip: '#ffd4e5', glow: '#ff5c93' }
+        ],
+        hydrangeas: ['#f472b6', '#ec4899', '#f9a8d4', '#fbcfe8', '#ff85b3'],
+        petalColors: ['#ec4899', '#f472b6', '#f9a8d4', '#ff85b3']
+      },
+      {
+        name: 'Hồng Tím Mộng Mơ',
+        ribbon: ['#d946ef', '#f5d0fe', '#86198f'],
+        wrap: ['rgba(245, 208, 254, 0.16)', 'rgba(217, 70, 239, 0.09)'],
+        tulips: [
+          { base: '#c026d3', mid: '#e879f9', tip: '#fae8ff', glow: '#e879f9' },
+          { base: '#db2777', mid: '#f472b6', tip: '#fce7f3', glow: '#f472b6' },
+          { base: '#a21caf', mid: '#f0abfc', tip: '#fdf4ff', glow: '#f0abfc' }
+        ],
+        hydrangeas: ['#f5d0fe', '#f0abfc', '#fbcfe8', '#f9a8d4', '#fae8ff'],
+        petalColors: ['#f0abfc', '#f9a8d4', '#f5d0fe', '#fbcfe8']
+      }
+    ];
+
+    let currentPaletteIndex = 0;
+
+    // Các hàm easing giúp chuyển động mọc cành, nảy lá, nở hoa tự nhiên
+    const clamp = (v, min = 0, max = 1) => Math.max(min, Math.min(max, v));
+    const easeOutCubic = t => 1 - Math.pow(1 - clamp(t), 3);
+    const easeOutBack = t => {
+      const c1 = 1.55;
+      const c3 = c1 + 1;
+      const x = clamp(t);
+      return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+    };
+    const easeInOutSine = t => -(Math.cos(Math.PI * clamp(t)) - 1) / 2;
+
+    // Tính tọa độ & vector tiếp tuyến trên đường cong Cubic Bezier tại tham số t [0..1]
+    function cubicBezierPoint(p0, p1, p2, p3, t) {
+      const u = 1 - t;
+      const tt = t * t;
+      const uu = u * u;
+      const uuu = uu * u;
+      const ttt = tt * t;
+      return {
+        x: uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
+        y: uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y
+      };
+    }
+
+    function cubicBezierTangent(p0, p1, p2, p3, t) {
+      const u = 1 - t;
+      const dx = 3 * u * u * (p1.x - p0.x) + 6 * u * t * (p2.x - p1.x) + 3 * t * t * (p3.x - p2.x);
+      const dy = 3 * u * u * (p1.y - p0.y) + 6 * u * t * (p2.y - p1.y) + 3 * t * t * (p3.y - p2.y);
+      return Math.atan2(dy, dx);
+    }
+
+    // =========================================================================
+    // 2. NHẠC NỀN HỘP NHẠC NHẸ NHÀNG (WEB AUDIO API)
+    // =========================================================================
+    class MusicBoxAudio {
+      constructor() {
+        this.ctx = null;
+        this.isPlaying = false;
+        this.isMuted = true;
+        this.timer = null;
+        this.idx = 0;
+        // Giai điệu dịu dàng như gió xuân
+        this.notes = [
+          523.25, 659.25, 783.99, 1046.50, 783.99, 659.25,
+          493.88, 587.33, 783.99, 987.77, 783.99, 587.33,
+          440.00, 523.25, 659.25, 880.00, 659.25, 523.25,
+          349.23, 440.00, 523.25, 698.46, 523.25, 440.00
+        ];
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTone(freq, vol = 0.075, dur = 1.9) {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(vol, now + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + dur + 0.05);
+      }
+
+      playSparkleChime() {
+        if (this.isMuted) return;
+        this.init();
+        const notes = [880, 1046.5, 1318.5];
+        this.playTone(notes[Math.floor(Math.random() * notes.length)], 0.04, 0.9);
+      }
+
+      toggle() {
+        this.init();
+        // Nhạc nền từ file nhac-nen.mp3
+        if (!this.bgm) {
+          this.bgm = new Audio('nhac-nen.mp3');
+          this.bgm.loop = true;
+          this.bgm.volume = 0.6;
+        }
+        this.isMuted = !this.isMuted;
+        this.isPlaying = !this.isMuted;
+        if (this.isMuted) {
+          this.bgm.pause();
+        } else {
+          this.bgm.play().catch(err => console.warn('Không phát được nhạc:', err));
+        }
+        document.getElementById('musicBtn').textContent = this.isMuted ? '🔇' : '🔊';
+      }
+    }
+
+    const audio = new MusicBoxAudio();
+    document.getElementById('musicBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      audio.toggle();
+    });
+
+    // Tự động phát nhạc nền khi mở trang
+    (function autoPlayMusic() {
+      audio.bgm = new Audio('nhac-nen.mp3');
+      audio.bgm.loop = true;
+      audio.bgm.volume = 0.6;
+      audio.bgm.autoplay = true;
+      const btn = document.getElementById('musicBtn');
+
+      const onPlaying = () => {
+        audio.isMuted = false;
+        audio.isPlaying = true;
+        btn.textContent = '🔊';
+        removeUnlock();
+      };
+      audio.bgm.addEventListener('playing', onPlaying, { once: true });
+
+      // Nếu trình duyệt chặn autoplay: phát ngay ở tương tác đầu tiên (chạm, click, cuộn, phím)
+      const events = ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll', 'mousemove'];
+      const unlock = (e) => {
+        if (e && btn.contains(e.target)) return; // nút nhạc tự xử lý
+        if (!audio.bgm.paused) return removeUnlock();
+        audio.init();
+        audio.bgm.play().catch(() => {});
+      };
+      function removeUnlock() {
+        events.forEach(ev => window.removeEventListener(ev, unlock, true));
+      }
+      events.forEach(ev => window.addEventListener(ev, unlock, { capture: true, passive: true }));
+
+      audio.bgm.play().catch(() => { /* bị chặn: chờ tương tác đầu tiên */ });
+    })();
+
+    // =========================================================================
+    // 3. KHỞI TẠO CANVAS & CẤU TRÚC BÓ HOA TỰ MỌC
+    // =========================================================================
+    const canvas = document.getElementById('flowerCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let bouquetScale = 1;
+    let originX = 0;
+    let originY = 0;
+    let tieY = 0;
+
+    let stems = [];
+    let babyBranches = [];
+    let fireflies = [];
+    let floatingPetals = [];
+    let startTime = 0;
+    let messageShown = false;
+
+    // Tự động điều chỉnh kích thước canvas và tỷ lệ bó hoa theo màn hình
+    function resizeCanvas() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      bouquetScale = Math.min(width / 550, height / 650, 1.1);
+      bouquetScale = Math.max(bouquetScale, 0.5);
+
+      originX = width / 2;
+      originY = height * 0.90;
+      tieY = originY - 108 * bouquetScale;
+
+      buildBouquetLayout();
+    }
+
+    // Tạo danh sách các bông hoa con 4 cánh xếp dày thành khối cầu cho một chùm Cẩm Tú Cầu
+    function createHydrangeaFlorets(radius, seed) {
+      const florets = [];
+      const count = 48; // 48 bông hoa con xếp khít tạo khối cầu dày dặn, bồng bềnh
+      const goldenAngle = 2.3999632; // Góc vàng Fibonacci phân bố đều không bị chồng cục
+
+      for (let i = 0; i < count; i++) {
+        const ratio = Math.sqrt((i + 0.5) / count);
+        const angle = i * goldenAngle + seed;
+        const dist = ratio * radius * 0.95;
+        florets.push({
+          ox: Math.cos(angle) * dist,
+          oy: Math.sin(angle) * dist * 0.92, // Hơi bầu nhẹ tự nhiên
+          size: (0.22 + (1 - ratio) * 0.08 + ((i * 7) % 5) * 0.01) * radius,
+          rot: (i * 1.15 + seed) % (Math.PI * 2),
+          colorSlot: (i + Math.floor(seed * 3)) % 5,
+          // Bông ở giữa nở trước, bông viền ngoài nở nối tiếp ngay sau
+          startAt: ratio * 0.42
+        });
+      }
+      return florets;
+    }
+
+    // Xây dựng cấu trúc bó hoa đầy đặn: 11 cành Tulip hồng + 7 chùm Cẩm Tú Cầu hồng + 10 nhánh baby trắng
+    function buildBouquetLayout() {
+      const s = bouquetScale;
+
+      // Sắp xếp từ lớp sau lên lớp trước tạo dáng bó hoa tròn đầy kiểu Hàn
+      const mainDefs = [
+        // --- LỚP SAU CÙNG: 5 cành Tulip hồng vươn cao tạo đỉnh vòm mềm mại ---
+        { type: 'tulip', dx: -158, dy: -392, c1x: -24, c1y: -160, c2x: -125, c2y: -295, delay: 0.14, size: 42, colorIdx: 1, swayPhase: 0.3 },
+        { type: 'tulip', dx: 158,  dy: -388, c1x: 24,  c1y: -160, c2x: 126,  c2y: -290, delay: 0.18, size: 42, colorIdx: 2, swayPhase: 1.5 },
+        { type: 'tulip', dx: -82,  dy: -432, c1x: -14, c1y: -175, c2x: -66,  c2y: -322, delay: 0.06, size: 45, colorIdx: 0, swayPhase: 2.2 },
+        { type: 'tulip', dx: 84,   dy: -428, c1x: 14,  c1y: -175, c2x: 68,   c2y: -320, delay: 0.10, size: 45, colorIdx: 1, swayPhase: 3.1 },
+        { type: 'tulip', dx: 0,    dy: -450, c1x: 0,   c1y: -185, c2x: 2,    c2y: -335, delay: 0.0,  size: 47, colorIdx: 2, swayPhase: 1.1 },
+
+        // --- LỚP NỀN GIỮA: 4 chùm Cẩm Tú Cầu hồng ôm dày phần thân trên ---
+        { type: 'hydrangea', dx: -146, dy: -322, c1x: -24, c1y: -140, c2x: -116, c2y: -245, delay: 0.24, size: 68, colorIdx: 0, swayPhase: 0.9 },
+        { type: 'hydrangea', dx: 148,  dy: -318, c1x: 24,  c1y: -140, c2x: 118,  c2y: -242, delay: 0.28, size: 68, colorIdx: 1, swayPhase: 2.6 },
+        { type: 'hydrangea', dx: -52,  dy: -358, c1x: -10, c1y: -155, c2x: -42,  c2y: -270, delay: 0.20, size: 74, colorIdx: 2, swayPhase: 1.8 },
+        { type: 'hydrangea', dx: 54,   dy: -355, c1x: 10,  c1y: -155, c2x: 44,   c2y: -268, delay: 0.22, size: 74, colorIdx: 0, swayPhase: 3.4 },
+
+        // --- LỚP TẦNG GIỮA: 4 cành Tulip hồng xòe duyên dáng + 1 chùm Tú Cầu tâm điểm ---
+        { type: 'tulip',     dx: -206, dy: -324, c1x: -32, c1y: -140, c2x: -165, c2y: -252, delay: 0.36, size: 41, colorIdx: 0, swayPhase: 4.2 },
+        { type: 'tulip',     dx: 206,  dy: -320, c1x: 32,  c1y: -140, c2x: 165,  c2y: -250, delay: 0.40, size: 41, colorIdx: 1, swayPhase: 5.0 },
+        { type: 'tulip',     dx: -104, dy: -328, c1x: -18, c1y: -145, c2x: -84,  c2y: -250, delay: 0.32, size: 44, colorIdx: 2, swayPhase: 2.4 },
+        { type: 'tulip',     dx: 106,  dy: -326, c1x: 18,  c1y: -145, c2x: 86,   c2y: -248, delay: 0.34, size: 44, colorIdx: 0, swayPhase: 4.6 },
+        { type: 'hydrangea', dx: 0,    dy: -290, c1x: 0,   c1y: -130, c2x: 3,    c2y: -222, delay: 0.38, size: 78, colorIdx: 1, swayPhase: 1.9 },
+
+        // --- LỚP TRƯỚC: 2 chùm Cẩm Tú Cầu thấp ôm viền + 2 bông Tulip điểm nhấn ---
+        { type: 'hydrangea', dx: -108, dy: -248, c1x: -18, c1y: -112, c2x: -88,  c2y: -192, delay: 0.46, size: 66, colorIdx: 2, swayPhase: 3.5 },
+        { type: 'hydrangea', dx: 110,  dy: -246, c1x: 18,  c1y: -112, c2x: 90,   c2y: -190, delay: 0.50, size: 66, colorIdx: 0, swayPhase: 0.7 },
+        { type: 'tulip',     dx: -46,  dy: -238, c1x: -8,  c1y: -108, c2x: -38,  c2y: -182, delay: 0.54, size: 44, colorIdx: 1, swayPhase: 2.9 },
+        { type: 'tulip',     dx: 48,   dy: -236, c1x: 8,   c1y: -108, c2x: 40,   c2y: -180, delay: 0.58, size: 44, colorIdx: 2, swayPhase: 4.1 }
+      ];
+
+      stems = mainDefs.map((d, idx) => {
+        // Điểm gốc chụm gọn dưới chân bó hoa
+        const baseOffset = (d.dx / 210) * 16 * s;
+        const p0 = { x: originX - baseOffset, y: originY + Math.abs(baseOffset) * 0.35 };
+        const p1 = { x: originX + d.c1x * s, y: originY + d.c1y * s };
+        const p2 = { x: originX + d.c2x * s, y: originY + d.c2y * s };
+        const p3 = { x: originX + d.dx * s,  y: originY + d.dy * s };
+
+        // Lá Tulip thuôn dài vươn dọc theo thân; Lá Cẩm Tú Cầu bầu dục to mềm mại
+        const leaves = d.type === 'tulip'
+          ? [
+              { t: 0.40, side: -1, size: 58 * s, delayOffset: 0.85, kind: 'tulip' },
+              { t: 0.54, side: 1,  size: 54 * s, delayOffset: 1.12, kind: 'tulip' }
+            ]
+          : [
+              { t: 0.48, side: -1, size: 44 * s, delayOffset: 0.95, kind: 'hydrangea' },
+              { t: 0.64, side: 1,  size: 46 * s, delayOffset: 1.22, kind: 'hydrangea' },
+              { t: 0.76, side: -1, size: 38 * s, delayOffset: 1.44, kind: 'hydrangea' }
+            ];
+
+        const leafHue = d.type === 'tulip' ? 142 + (idx % 3) * 5 : 132 + (idx % 3) * 6;
+        const flowerSize = d.size * s;
+
+        return {
+          type: d.type,
+          p0, p1, p2, p3,
+          delay: d.delay,
+          growDuration: 1.85,
+          bloomDelay: d.delay + 1.92,
+          bloomDuration: d.type === 'hydrangea' ? 1.85 : 1.55,
+          flowerSize,
+          colorIdx: d.colorIdx,
+          swayPhase: d.swayPhase,
+          leaves,
+          leafHue,
+          thickness: (d.type === 'tulip' ? 4.2 : 4.8) * s,
+          florets: d.type === 'hydrangea' ? createHydrangeaFlorets(flowerSize, idx * 1.7 + 0.5) : null
+        };
+      });
+
+      // 10 nhánh hoa baby trắng li ti điểm xuyết viền ngoài & xen kẽ trong bó hoa
+      const babyDefs = [
+        { dx: -228, dy: -310, c1x: -38, c1y: -140, c2x: -178, c2y: -248, delay: 0.55 },
+        { dx: 228,  dy: -306, c1x: 38,  c1y: -140, c2x: 180,  c2y: -245, delay: 0.60 },
+        { dx: -188, dy: -392, c1x: -28, c1y: -170, c2x: -148, c2y: -308, delay: 0.52 },
+        { dx: 190,  dy: -388, c1x: 28,  c1y: -170, c2x: 150,  c2y: -305, delay: 0.58 },
+        { dx: -116, dy: -442, c1x: -18, c1y: -185, c2x: -92,  c2y: -342, delay: 0.48 },
+        { dx: 118,  dy: -438, c1x: 18,  c1y: -185, c2x: 94,   c2y: -338, delay: 0.50 },
+        { dx: -38,  dy: -460, c1x: -8,  c1y: -195, c2x: -30,  c2y: -355, delay: 0.45 },
+        { dx: 40,   dy: -456, c1x: 8,   c1y: -195, c2x: 32,   c2y: -352, delay: 0.47 },
+        { dx: -162, dy: -242, c1x: -26, c1y: -110, c2x: -130, c2y: -190, delay: 0.62 },
+        { dx: 164,  dy: -240, c1x: 26,  c1y: -110, c2x: 132,  c2y: -188, delay: 0.64 }
+      ];
+
+      babyBranches = babyDefs.map((b, i) => ({
+        p0: { x: originX, y: originY },
+        p1: { x: originX + b.c1x * s, y: originY + b.c1y * s },
+        p2: { x: originX + b.c2x * s, y: originY + b.c2y * s },
+        p3: { x: originX + b.dx * s,  y: originY + b.dy * s },
+        delay: b.delay,
+        growDuration: 1.9,
+        bloomDelay: b.delay + 2.0,
+        swayPhase: i * 1.1,
+        // Các chấm hoa nhỏ xíu ở đầu nhánh
+        buds: [
+          { ox: 0, oy: 0, r: 4.5 * s },
+          { ox: -14 * s, oy: 10 * s, r: 3.6 * s },
+          { ox: 15 * s, oy: 8 * s, r: 3.8 * s },
+          { ox: -7 * s, oy: -14 * s, r: 3.4 * s },
+          { ox: 10 * s, oy: -12 * s, r: 3.2 * s }
+        ]
+      }));
+    }
+
+    // Tạo đom đóm ánh sáng bay nhẹ nền đêm
+    function initFireflies() {
+      fireflies = [];
+      for (let i = 0; i < 42; i++) {
+        fireflies.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          r: Math.random() * 2.2 + 0.8,
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: -Math.random() * 0.35 - 0.08,
+          phase: Math.random() * Math.PI * 2,
+          speed: Math.random() * 0.03 + 0.015
+        });
+      }
+    }
+
+    // Thả thêm cánh hoa hồng & hạt sáng khi người dùng chạm vào màn hình hoặc sau khi hoa nở
+    function spawnPetals(x, y, count = 8) {
+      const pal = PALETTES[currentPaletteIndex];
+      for (let i = 0; i < count; i++) {
+        const pColor = pal.petalColors[Math.floor(Math.random() * pal.petalColors.length)];
+        floatingPetals.push({
+          x: x + (Math.random() - 0.5) * 35,
+          y: y + (Math.random() - 0.5) * 35,
+          vx: (Math.random() - 0.5) * 1.8,
+          vy: Math.random() * 1.1 + 0.45,
+          size: (Math.random() * 6 + 5) * bouquetScale,
+          angle: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 0.05,
+          color: pColor,
+          alpha: 0.92,
+          life: 1
+        });
+      }
+    }
+
+    // =========================================================================
+    // 4. CÁC HÀM VẼ GIẤY GÓI, CÀNH ĐUNG ĐƯA, LÁ, TULIP & CẨM TÚ CẦU
+    // =========================================================================
+
+    // Tính tọa độ 4 điểm Bezier của cành kèm hiệu ứng đung đưa nhẹ theo gió
+    function getSwayedPoints(stem, elapsed) {
+      const sway = Math.sin(elapsed * 1.35 + stem.swayPhase) * 7.5 * bouquetScale;
+      return {
+        p0: stem.p0,
+        p1: stem.p1,
+        p2: { x: stem.p2.x + sway * 0.45, y: stem.p2.y },
+        p3: { x: stem.p3.x + sway, y: stem.p3.y + Math.abs(sway) * 0.12 }
+      };
+    }
+
+    // Vẽ thân cành tự vươn dài dần từ gốc lên đỉnh theo đường cong Bezier
+    function drawGrowingStem(pts, progress, thickness, isBaby = false) {
+      if (progress <= 0) return;
+      const maxT = easeOutCubic(progress);
+      const steps = 36;
+
+      ctx.save();
+      const grad = ctx.createLinearGradient(pts.p0.x, pts.p0.y, pts.p3.x, pts.p3.y);
+      if (isBaby) {
+        grad.addColorStop(0, 'rgba(34, 85, 52, 0.75)');
+        grad.addColorStop(1, 'rgba(134, 239, 172, 0.85)');
+      } else {
+        grad.addColorStop(0, '#14532d');
+        grad.addColorStop(0.55, '#16a34a');
+        grad.addColorStop(1, '#4ade80');
+      }
+
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = thickness;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(pts.p0.x, pts.p0.y);
+      for (let i = 1; i <= steps; i++) {
+        const t = (i / steps) * maxT;
+        const pt = cubicBezierPoint(pts.p0, pts.p1, pts.p2, pts.p3, t);
+        ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Vẽ lớp giấy gói mờ ảo phong cách Hàn Quốc phía sau bó hoa
+    function drawBouquetWrap(progress) {
+      if (progress <= 0) return;
+      const p = easeOutCubic(progress);
+      const s = bouquetScale;
+      const pal = PALETTES[currentPaletteIndex];
+
+      ctx.save();
+      ctx.globalAlpha = p;
+
+      // Lớp giấy gói sau xòe hình quạt mềm mại
+      const backGrad = ctx.createLinearGradient(originX, originY - 485 * s, originX, originY);
+      backGrad.addColorStop(0, pal.wrap[0]);
+      backGrad.addColorStop(1, pal.wrap[1]);
+
+      ctx.fillStyle = backGrad;
+      ctx.strokeStyle = 'rgba(255, 210, 230, 0.28)';
+      ctx.lineWidth = 1.2 * s;
+
+      // Lớp giấy chính giữa nâng đỉnh bó hoa
+      ctx.beginPath();
+      ctx.moveTo(originX, tieY + 25 * s);
+      ctx.bezierCurveTo(originX - 110 * s, originY - 260 * s, originX - 95 * s, originY - 470 * s, originX, originY - 492 * s);
+      ctx.bezierCurveTo(originX + 95 * s, originY - 470 * s, originX + 110 * s, originY - 260 * s, originX, tieY + 25 * s);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Cánh giấy trái mở rộng ôm trọn bó hoa đầy đặn
+      ctx.beginPath();
+      ctx.moveTo(originX, tieY + 25 * s);
+      ctx.bezierCurveTo(originX - 150 * s, tieY - 95 * s, originX - 285 * s, originY - 315 * s, originX - 215 * s, originY - 455 * s);
+      ctx.quadraticCurveTo(originX - 95 * s, originY - 485 * s, originX, originY - 430 * s);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Cánh giấy phải
+      ctx.beginPath();
+      ctx.moveTo(originX, tieY + 25 * s);
+      ctx.bezierCurveTo(originX + 150 * s, tieY - 95 * s, originX + 285 * s, originY - 315 * s, originX + 215 * s, originY - 455 * s);
+      ctx.quadraticCurveTo(originX + 95 * s, originY - 485 * s, originX, originY - 430 * s);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Vẽ nếp giấy gói trong suốt ôm phía trước chân bó hoa (kiểu bó hoa cao cấp)
+    function drawBouquetFrontWrap(progress) {
+      if (progress <= 0) return;
+      const p = easeOutCubic(progress);
+      const s = bouquetScale;
+      const pal = PALETTES[currentPaletteIndex];
+
+      ctx.save();
+      ctx.globalAlpha = p * 0.85;
+
+      const frontGrad = ctx.createLinearGradient(originX, tieY - 120 * s, originX, originY + 10 * s);
+      frontGrad.addColorStop(0, pal.wrap[0]);
+      frontGrad.addColorStop(1, 'rgba(255, 225, 240, 0.24)');
+
+      ctx.fillStyle = frontGrad;
+      ctx.strokeStyle = 'rgba(255, 225, 240, 0.34)';
+      ctx.lineWidth = 1.1 * s;
+
+      // Vạt giấy gói chéo bên trái
+      ctx.beginPath();
+      ctx.moveTo(originX, tieY + 18 * s);
+      ctx.quadraticCurveTo(originX - 95 * s, tieY - 38 * s, originX - 155 * s, tieY - 120 * s);
+      ctx.quadraticCurveTo(originX - 65 * s, tieY - 95 * s, originX + 18 * s, tieY - 12 * s);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Vạt giấy gói chéo bên phải
+      ctx.beginPath();
+      ctx.moveTo(originX, tieY + 18 * s);
+      ctx.quadraticCurveTo(originX + 95 * s, tieY - 38 * s, originX + 155 * s, tieY - 120 * s);
+      ctx.quadraticCurveTo(originX + 65 * s, tieY - 95 * s, originX - 18 * s, tieY - 12 * s);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Vẽ một chiếc lá xanh nảy mầm dọc theo thân cành (hỗ trợ lá Tulip thuôn dài & lá Cẩm Tú Cầu bầu dục)
+    function drawLeaf(x, y, angle, size, progress, hue, kind = 'hydrangea') {
+      if (progress <= 0) return;
+      const p = easeOutBack(progress);
+      const len = size * p;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+
+      if (kind === 'tulip') {
+        // Lá Tulip thuôn dài, hơi cong mềm vươn lên theo dáng thân
+        const wid = size * 0.22 * p;
+        const grad = ctx.createLinearGradient(0, 0, len, 0);
+        grad.addColorStop(0, `hsl(${hue}, 55%, 24%)`);
+        grad.addColorStop(0.55, `hsl(${hue}, 62%, 38%)`);
+        grad.addColorStop(1, `hsl(${hue + 8}, 68%, 52%)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(len * 0.45, -wid * 1.2, len, -wid * 0.15);
+        ctx.quadraticCurveTo(len * 0.5, wid * 0.95, 0, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // Gân lá tulip chạy dọc mượt
+        ctx.strokeStyle = `hsla(${hue + 14}, 80%, 74%, 0.45)`;
+        ctx.lineWidth = Math.max(0.8, 1.1 * bouquetScale);
+        ctx.beginPath();
+        ctx.moveTo(2, 0);
+        ctx.quadraticCurveTo(len * 0.48, -wid * 0.1, len * 0.88, -wid * 0.1);
+        ctx.stroke();
+      } else {
+        // Lá Cẩm Tú Cầu bầu dục rộng, xanh mướt ôm lấy chùm hoa
+        const wid = size * 0.52 * p;
+        const grad = ctx.createLinearGradient(0, 0, len, 0);
+        grad.addColorStop(0, `hsl(${hue}, 64%, 22%)`);
+        grad.addColorStop(0.55, `hsl(${hue}, 70%, 35%)`);
+        grad.addColorStop(1, `hsl(${hue + 6}, 76%, 50%)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(len * 0.25, -wid * 1.05, len * 0.78, -wid * 0.85, len, 0);
+        ctx.bezierCurveTo(len * 0.78, wid * 0.85, len * 0.25, wid * 1.05, 0, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // Gân chính & gân nhánh nhẹ
+        ctx.strokeStyle = `hsla(${hue + 15}, 85%, 75%, 0.48)`;
+        ctx.lineWidth = Math.max(0.8, 1.15 * bouquetScale);
+        ctx.beginPath();
+        ctx.moveTo(2, 0);
+        ctx.lineTo(len * 0.86, 0);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // Vẽ bông hoa Tulip hồng nở khum/hé cánh thanh lịch trên đỉnh cành
+    function drawTulipFlower(x, y, size, bloomProgress, colorSet, tiltAngle) {
+      if (bloomProgress <= 0) return;
+
+      const growP = easeOutBack(clamp(bloomProgress / 0.85));
+      const openP = easeInOutSine(clamp((bloomProgress - 0.25) / 0.75));
+      const h = size * 1.38 * growP;
+      const w = size * 0.56 * growP;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(tiltAngle);
+
+      // Hào quang hồng dịu phía sau bông tulip
+      const glow = ctx.createRadialGradient(0, -h * 0.45, h * 0.08, 0, -h * 0.45, h * 1.05);
+      glow.addColorStop(0, colorSet.glow);
+      glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.globalAlpha = easeOutCubic(bloomProgress) * 0.34;
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, -h * 0.45, h * 1.05, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Hàm vẽ 1 cánh Tulip mềm mại có chuyển sắc từ gốc lên đỉnh
+      const drawTulipPetal = (angle, scaleX, scaleY, c1, c2, c3) => {
+        ctx.save();
+        ctx.rotate(angle);
+        const ph = h * scaleY;
+        const pw = w * scaleX;
+        const grad = ctx.createLinearGradient(0, 4, 0, -ph);
+        grad.addColorStop(0, c1);
+        grad.addColorStop(0.55, c2);
+        grad.addColorStop(1, c3);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, 4);
+        ctx.bezierCurveTo(-pw * 1.15, -ph * 0.18, -pw * 1.05, -ph * 0.82, 0, -ph);
+        ctx.bezierCurveTo(pw * 1.05, -ph * 0.82, pw * 1.15, -ph * 0.18, 0, 4);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      // 1. Hai cánh lớp sau hé mở nhẹ
+      const backSpread = 0.16 + openP * 0.26;
+      drawTulipPetal(-backSpread, 0.82, 0.96, colorSet.base, colorSet.base, colorSet.mid);
+      drawTulipPetal(backSpread,  0.82, 0.96, colorSet.base, colorSet.base, colorSet.mid);
+
+      // 2. Nhụy vàng kem lấp ló bên trong khi tulip hé nở
+      if (openP > 0.25) {
+        ctx.fillStyle = '#fef08a';
+        ctx.globalAlpha = (openP - 0.25) * 0.9;
+        ctx.beginPath();
+        ctx.ellipse(0, -h * 0.56, w * 0.16, h * 0.18, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // 3. Hai cánh chính hai bên ôm tròn tạo dáng ly Tulip
+      const sideSpread = 0.12 + openP * 0.18;
+      drawTulipPetal(-sideSpread, 0.92, 1.0, colorSet.base, colorSet.mid, colorSet.tip);
+      drawTulipPetal(sideSpread,  0.92, 1.0, colorSet.base, colorSet.mid, colorSet.tip);
+
+      // 4. Cánh trung tâm phía trước mềm mại sáng nhất
+      drawTulipPetal(0, 0.98, 1.02, colorSet.base, colorSet.mid, colorSet.tip);
+
+      // 5. Đế xanh nhỏ nơi tiếp giáp cuống hoa
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath();
+      ctx.ellipse(0, 3, w * 0.26, 3.5 * bouquetScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // Vẽ một bông hoa Cẩm Tú Cầu con 4 cánh tròn mềm mại
+    function drawHydrangeaFloret(x, y, size, rot, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+
+      for (let i = 0; i < 4; i++) {
+        ctx.save();
+        ctx.rotate((Math.PI / 2) * i);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.ellipse(0, -size * 0.56, size * 0.46, size * 0.54, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Viền sáng mảnh giúp các bông nhỏ tách lớp nổi khối trong chùm cầu
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
+        ctx.lineWidth = 0.65;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Nhụy chấm sáng nhỏ xíu ở tâm mỗi bông hoa con
+      ctx.fillStyle = '#fff7ed';
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(1.2, size * 0.17), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // Vẽ cả chùm Cẩm Tú Cầu hồng nở bung dần từ tâm ra ngoài
+    function drawHydrangeaCluster(x, y, radius, bloomProgress, colors, florets) {
+      if (bloomProgress <= 0) return;
+
+      ctx.save();
+      ctx.translate(x, y);
+
+      // Hào quang hồng bồng bềnh phía sau chùm cầu
+      const glow = ctx.createRadialGradient(0, 0, radius * 0.15, 0, 0, radius * 1.35);
+      glow.addColorStop(0, colors[2]);
+      glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.globalAlpha = easeOutCubic(bloomProgress) * 0.36;
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 1.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Đế bóng hồng đậm dịu bên dưới giúp khối cầu có chiều sâu 3D
+      const baseP = easeOutCubic(clamp(bloomProgress * 1.2));
+      ctx.fillStyle = 'rgba(157, 23, 77, 0.28)';
+      ctx.beginPath();
+      ctx.arc(0, 2 * bouquetScale, radius * 0.84 * baseP, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Vẽ từng bông hoa con 4 cánh nở nối tiếp nhau tạo thành quả cầu tú cầu
+      for (let i = 0; i < florets.length; i++) {
+        const f = florets[i];
+        const fp = clamp((bloomProgress - f.startAt) / (1 - f.startAt));
+        if (fp <= 0) continue;
+
+        const pop = easeOutBack(fp);
+        const fx = f.ox * easeOutCubic(fp);
+        const fy = f.oy * easeOutCubic(fp);
+        const fColor = colors[f.colorSlot % colors.length];
+        drawHydrangeaFloret(fx, fy, f.size * pop, f.rot + (1 - fp) * 0.4, fColor);
+      }
+
+      ctx.restore();
+    }
+
+    // Vẽ hoa baby trắng li ti phát sáng dịu trên các nhánh phụ
+    function drawBabyFlowers(tipX, tipY, buds, bloomProgress) {
+      if (bloomProgress <= 0) return;
+      const p = easeOutBack(bloomProgress);
+
+      ctx.save();
+      ctx.shadowColor = '#fff';
+      ctx.shadowBlur = 10;
+
+      buds.forEach(b => {
+        const bx = tipX + b.ox * easeOutCubic(bloomProgress);
+        const by = tipY + b.oy * easeOutCubic(bloomProgress);
+        const r = b.r * p;
+
+        // Nhánh nhỏ nối ra từng bông li ti
+        ctx.strokeStyle = 'rgba(134, 239, 172, 0.55)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+
+        // Chấm hoa trắng ngà
+        ctx.fillStyle = '#fff9fc';
+        ctx.beginPath();
+        ctx.arc(bx, by, r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.restore();
+    }
+
+    // Vẽ dải ruy-băng & nơ lụa thắt ngang bó hoa ở điểm gốc
+    function drawSilkRibbon(progress) {
+      if (progress <= 0) return;
+      const p = easeOutBack(progress);
+      const s = bouquetScale;
+      const pal = PALETTES[currentPaletteIndex];
+
+      ctx.save();
+      ctx.translate(originX, tieY);
+      ctx.scale(p, p);
+
+      // Hai dải ruy-băng rủ mềm xuống dưới
+      ctx.fillStyle = pal.ribbon[2];
+      // Dải trái
+      ctx.beginPath();
+      ctx.moveTo(-8 * s, 4 * s);
+      ctx.quadraticCurveTo(-28 * s, 45 * s, -44 * s, 96 * s);
+      ctx.lineTo(-28 * s, 88 * s);
+      ctx.lineTo(-22 * s, 102 * s);
+      ctx.quadraticCurveTo(-12 * s, 52 * s, 0, 10 * s);
+      ctx.closePath();
+      ctx.fill();
+
+      // Dải phải
+      ctx.beginPath();
+      ctx.moveTo(8 * s, 4 * s);
+      ctx.quadraticCurveTo(28 * s, 45 * s, 44 * s, 96 * s);
+      ctx.lineTo(28 * s, 88 * s);
+      ctx.lineTo(22 * s, 102 * s);
+      ctx.quadraticCurveTo(12 * s, 52 * s, 0, 10 * s);
+      ctx.closePath();
+      ctx.fill();
+
+      // Hai cánh nơ lụa hai bên
+      const bowGrad = ctx.createLinearGradient(-45 * s, -15 * s, 45 * s, 15 * s);
+      bowGrad.addColorStop(0, pal.ribbon[0]);
+      bowGrad.addColorStop(0.5, pal.ribbon[1]);
+      bowGrad.addColorStop(1, pal.ribbon[0]);
+      ctx.fillStyle = bowGrad;
+
+      // Cánh nơ trái
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(-26 * s, -28 * s, -56 * s, -12 * s, -48 * s, 8 * s);
+      ctx.bezierCurveTo(-40 * s, 26 * s, -14 * s, 12 * s, 0, 4 * s);
+      ctx.closePath();
+      ctx.fill();
+
+      // Cánh nơ phải
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(26 * s, -28 * s, 56 * s, -12 * s, 48 * s, 8 * s);
+      ctx.bezierCurveTo(40 * s, 26 * s, 14 * s, 12 * s, 0, 4 * s);
+      ctx.closePath();
+      ctx.fill();
+
+      // Nút thắt chính giữa nơ
+      ctx.fillStyle = pal.ribbon[1];
+      ctx.beginPath();
+      ctx.roundRect(-11 * s, -9 * s, 22 * s, 18 * s, 7 * s);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // Vẽ đom đóm & cánh hoa rơi nhẹ nhàng
+    function drawAmbientEffects() {
+      // Đom đóm lấp lánh
+      for (let i = 0; i < fireflies.length; i++) {
+        const f = fireflies[i];
+        f.x += f.vx;
+        f.y += f.vy;
+        f.phase += f.speed;
+
+        if (f.y < -10) {
+          f.y = height + 10;
+          f.x = Math.random() * width;
+        }
+        if (f.x < -10) f.x = width + 10;
+        if (f.x > width + 10) f.x = -10;
+
+        const alpha = (Math.sin(f.phase) * 0.5 + 0.5) * 0.7 + 0.1;
+        ctx.save();
+        ctx.fillStyle = `rgba(255, 226, 240, ${alpha})`;
+        ctx.shadowColor = '#ff85b3';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Cánh hoa rơi xoay nhẹ
+      for (let i = floatingPetals.length - 1; i >= 0; i--) {
+        const p = floatingPetals[i];
+        p.x += p.vx + Math.sin(p.angle) * 0.45;
+        p.y += p.vy;
+        p.angle += p.spin;
+        p.life -= 0.0045;
+
+        if (p.life <= 0 || p.y > height + 30) {
+          floatingPetals.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.globalAlpha = Math.min(p.alpha, p.life * 2);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.size, p.size * 0.58, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // =========================================================================
+    // 5. VÒNG LẶP ANIMATION CHÍNH (GỐC -> CÀNH -> LÁ -> HOA NỞ -> NƠ & LỜI CHÚC)
+    // =========================================================================
+    let lastAutoPetalTime = 0;
+
+    function animate(now) {
+      if (!startTime) startTime = now;
+      const elapsed = (now - startTime) / 1000; // Tính theo giây
+
+      // Xóa khung hình cũ
+      ctx.clearRect(0, 0, width, height);
+
+      // 1. Vẽ đom đóm nền phía sau
+      drawAmbientEffects();
+
+      // 2. Vẽ giấy gói bó hoa mờ ảo dần hiện lên khi cành đã vươn cao (từ giây 3.2)
+      const wrapProgress = clamp((elapsed - 3.2) / 1.4);
+      drawBouquetWrap(wrapProgress);
+
+      const pal = PALETTES[currentPaletteIndex];
+
+      // 3. Vẽ các nhánh hoa baby phụ mọc từ gốc lên & nở chấm trắng li ti
+      babyBranches.forEach(b => {
+        const pts = getSwayedPoints(b, elapsed);
+        const stemP = clamp((elapsed - b.delay) / b.growDuration);
+        drawGrowingStem(pts, stemP, 1.8 * bouquetScale, true);
+
+        const bloomP = clamp((elapsed - b.bloomDelay) / 1.1);
+        if (bloomP > 0) {
+          drawBabyFlowers(pts.p3.x, pts.p3.y, b.buds, bloomP);
+        }
+      });
+
+      // 4. Vẽ các cành hoa chính -> nảy lá dọc thân -> hoa nở rộ trên đỉnh
+      stems.forEach((stem, idx) => {
+        const pts = getSwayedPoints(stem, elapsed);
+
+        // Bước A: Cành tự xây lên từ gốc
+        const stemP = clamp((elapsed - stem.delay) / stem.growDuration);
+        drawGrowingStem(pts, stemP, stem.thickness, false);
+
+        // Bước B: Lá mọc ra từ thân khi cành đã vươn qua vị trí đó
+        stem.leaves.forEach(leaf => {
+          const leafP = clamp((elapsed - (stem.delay + leaf.delayOffset)) / 0.95);
+          if (leafP > 0 && stemP >= leaf.t * 0.92) {
+            const pos = cubicBezierPoint(pts.p0, pts.p1, pts.p2, pts.p3, leaf.t);
+            const tangent = cubicBezierTangent(pts.p0, pts.p1, pts.p2, pts.p3, leaf.t);
+            // Lá tulip ôm sát vươn dọc theo thân hơn, lá tú cầu xòe rộng hơn
+            const spread = leaf.kind === 'tulip' ? 0.36 : 0.88;
+            const leafAngle = tangent + leaf.side * spread;
+            drawLeaf(pos.x, pos.y, leafAngle, leaf.size, leafP, stem.leafHue, leaf.kind);
+          }
+        });
+
+        // Bước C: Hoa Tulip hồng & chùm Cẩm Tú Cầu hồng nở rộ trên đỉnh cành
+        const bloomP = clamp((elapsed - stem.bloomDelay) / stem.bloomDuration);
+        if (bloomP > 0) {
+          if (stem.type === 'tulip') {
+            const colorSet = pal.tulips[stem.colorIdx % pal.tulips.length];
+            const tipAngle = cubicBezierTangent(pts.p0, pts.p1, pts.p2, pts.p3, 0.98) + Math.PI / 2;
+            drawTulipFlower(pts.p3.x, pts.p3.y, stem.flowerSize, bloomP, colorSet, tipAngle * 0.55);
+          } else {
+            drawHydrangeaCluster(pts.p3.x, pts.p3.y, stem.flowerSize, bloomP, pal.hydrangeas, stem.florets);
+          }
+        }
+      });
+
+      // 5. Vẽ nếp giấy gói phía trước & thắt nơ lụa ngang điểm gốc bó hoa (từ giây 3.4)
+      const frontWrapP = clamp((elapsed - 3.35) / 1.15);
+      drawBouquetFrontWrap(frontWrapP);
+
+      const ribbonP = clamp((elapsed - 3.55) / 1.0);
+      drawSilkRibbon(ribbonP);
+
+      // 6. Hiện lời chúc lãng mạn khi bó hoa đã nở rộ (sau 3.8 giây)
+      if (elapsed > 3.8 && !messageShown) {
+        messageShown = true;
+        const msgBox = document.getElementById('messageContainer');
+        msgBox.classList.remove('message-hidden');
+        msgBox.classList.add('message-visible');
+      }
+
+      // 7. Sau khi hoa nở xong, thỉnh thoảng tự rơi nhẹ vài cánh hoa bay rất thơ
+      if (elapsed > 4.6 && now - lastAutoPetalTime > 1400 && floatingPetals.length < 28) {
+        lastAutoPetalTime = now;
+        const randStem = stems[Math.floor(Math.random() * stems.length)];
+        const pts = getSwayedPoints(randStem, elapsed);
+        spawnPetals(pts.p3.x, pts.p3.y, 1);
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    // =========================================================================
+    // 6. TƯƠNG TÁC NGƯỜI DÙNG: CHẠM THẢ CÁNH HOA, NỞ LẠI, ĐỔI MÀU, CHIA SẺ LINK
+    // =========================================================================
+    let toastTimer = null;
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      toast.textContent = text;
+      toast.style.opacity = '1';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.style.opacity = '0';
+      }, 2200);
+    }
+
+    // Chạm hoặc click lên canvas để thả thêm cánh hoa rơi
+    function handleCanvasInteract(clientX, clientY) {
+      spawnPetals(clientX, clientY, 7);
+    }
+
+    canvas.addEventListener('click', e => handleCanvasInteract(e.clientX, e.clientY));
+    canvas.addEventListener('touchstart', e => {
+      if (e.touches && e.touches.length > 0) {
+        handleCanvasInteract(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    // Nút xem lại toàn bộ quá trình mọc từ gốc
+    document.getElementById('replayBtn').addEventListener('click', () => {
+      startTime = performance.now();
+      messageShown = false;
+      floatingPetals = [];
+      const msgBox = document.getElementById('messageContainer');
+      msgBox.classList.remove('message-visible');
+      msgBox.classList.add('message-hidden');
+      showToast('🌱 Bó hoa đang mọc lại từ gốc...');
+    });
+
+    // Nút đổi tông màu bó hoa
+    document.getElementById('paletteBtn').addEventListener('click', () => {
+      currentPaletteIndex = (currentPaletteIndex + 1) % PALETTES.length;
+      const pal = PALETTES[currentPaletteIndex];
+      document.getElementById('paletteLabel').textContent = pal.name;
+      spawnPetals(originX, originY - 290 * bouquetScale, 12);
+      showToast(`🎨 Đã đổi sang bó hoa tông ${pal.name}`);
+    });
+
+    // Modal ghi lời chúc & sao chép link cá nhân hóa
+    const editModal = document.getElementById('editModal');
+    const subTitleEl = document.getElementById('subTitle');
+    const mainMessageEl = document.getElementById('mainMessage');
+    const inputSub = document.getElementById('inputSub');
+    const inputMain = document.getElementById('inputMain');
+
+    document.getElementById('editBtn').addEventListener('click', () => {
+      inputSub.value = subTitleEl.textContent.trim();
+      inputMain.value = mainMessageEl.textContent.trim();
+      editModal.classList.remove('hidden');
+      editModal.classList.add('flex');
+    });
+
+    document.getElementById('closeModalBtn').addEventListener('click', () => {
+      editModal.classList.add('hidden');
+      editModal.classList.remove('flex');
+    });
+
+    function applyCustomMessage() {
+      const sub = inputSub.value.trim();
+      const main = inputMain.value.trim();
+      if (sub) subTitleEl.textContent = sub;
+      if (main) mainMessageEl.textContent = main;
+    }
+
+    document.getElementById('applyMsgBtn').addEventListener('click', () => {
+      applyCustomMessage();
+      editModal.classList.add('hidden');
+      editModal.classList.remove('flex');
+      showToast('💌 Đã cập nhật lời chúc trên bó hoa!');
+    });
+
+    document.getElementById('copyShareBtn').addEventListener('click', () => {
+      applyCustomMessage();
+      const params = new URLSearchParams();
+      params.set('sub', subTitleEl.textContent.trim());
+      params.set('msg', mainMessageEl.textContent.trim());
+      params.set('p', currentPaletteIndex);
+
+      const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+      const temp = document.createElement('textarea');
+      temp.value = shareUrl;
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      document.body.appendChild(temp);
+      temp.select();
+      try {
+        document.execCommand('copy');
+        showToast('🌸 Đã sao chép link! Bạn có thể gửi tặng ngay.');
+      } catch (err) {
+        showToast('Không thể sao chép tự động, bạn lưu lại lời chúc nhé!');
+      }
+      document.body.removeChild(temp);
+    });
+
+    // Đọc lời chúc & tông màu từ URL nếu người nhận mở link chia sẻ
+    function loadFromURL() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('sub')) subTitleEl.textContent = params.get('sub');
+        if (params.get('msg')) mainMessageEl.textContent = params.get('msg');
+        const pIdx = parseInt(params.get('p'), 10);
+        if (!isNaN(pIdx) && pIdx >= 0 && pIdx < PALETTES.length) {
+          currentPaletteIndex = pIdx;
+          document.getElementById('paletteLabel').textContent = PALETTES[currentPaletteIndex].name;
+        }
+      } catch (e) {
+        console.error('Lỗi đọc tham số URL:', e);
+      }
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // Khởi chạy toàn bộ hoạt ảnh ngay khi mở trang
+    window.onload = function () {
+      loadFromURL();
+      resizeCanvas();
+      initFireflies();
+      startTime = performance.now();
+      requestAnimationFrame(animate);
+    };
+  </script>
+</body>
+</html>
